@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Tracker Input Test</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #111;
+            color: #eee;
+            margin: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        .container {
+            flex: 1;
+        }
+        #stage {
+            width: 640px;
+            height: 480px;
+            background: #222;
+            border: 2px solid #444;
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .hand-box {
+            position: absolute;
+            border: 3px solid #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 4px;
+            pointer-events: none;
+            transition: all 0.03s linear; /* Smooths out tiny jitters */
+        }
+        #log-panel {
+            width: 300px;
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-sizing: border-box;
+        }
+        pre {
+            background: #111;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            color: #00ff88;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .connected { background: #053c24; color: #00ff88; }
+        .disconnected { background: #3c0505; color: #ff4444; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Hand Tracking Interface Test</h1>
+        <p>Status: <span id="status" class="status disconnected">Disconnected</span></p>
+        
+        <!-- Simulation Stage -->
+        <div id="stage"></div>
+    </div>
+
+    <div id="log-panel">
+        <h3>Raw Stream Data</h3>
+        <pre id="raw-log">Waiting for connection...</pre>
+    </div>
+
+    <script>
+        const stage = document.getElementById('stage');
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('raw-log');
+
+        // Connect to the Node helper hub
+        const ws = new WebSocket('ws://localhost:5010');
+
+        ws.onopen = () => {
+            statusEl.textContent = 'Connected';
+            statusEl.className = 'status connected';
+            logEl.textContent = 'Streaming data...';
+        };
+
+        ws.onclose = () => {
+            statusEl.textContent = 'Disconnected';
+            statusEl.className = 'status disconnected';
+        };
+
+        ws.onerror = (err) => {
+            logEl.textContent = 'Error connecting to WebSocket hub.';
+            console.error(err);
+        };
+
+        ws.onmessage = (event) => {
+            // Update the raw JSON text log
+            logEl.textContent = event.data;
+
+            // Parse the data frame
+            const payload = JSON.parse(event.data);
+            
+            // Clear previous hand element boxes from the visual stage
+            stage.innerHTML = '';
+
+            if (payload.hands && payload.hands.length > 0) {
+                payload.hands.forEach(hand => {
+                    // Create a physical box element inside our HTML apparatus layout
+                    const box = document.createElement('div');
+                    box.className = 'hand-box';
+                    
+                    // Assign absolute styles directly from python coordinates
+                    box.style.left = `${hand.x}px`;
+                    box.style.top = `${hand.y}px`;
+                    box.style.width = `${hand.w}px`;
+                    box.style.height = `${hand.h}px`;
+                    
+                    stage.appendChild(box);
+                });
+            }
+        };
+    </script>
+</body>
+</html>
+
