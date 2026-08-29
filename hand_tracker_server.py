@@ -8,6 +8,9 @@ Detects hand positions and gestures, broadcasts to connected clients.
 Usage: python hand_tracker_server.py [--port 5000] [--camera 0]
 """
 
+import eventlet
+eventlet.monkey_patch()
+
 import argparse
 import cv2
 import mediapipe as mp
@@ -19,11 +22,7 @@ import threading
 import os
 from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
-import eventlet
 import json
-
-# Fix for OpenCV on some systems
-eventlet.monkey_patch()
 
 app = Flask(__name__, static_folder='static')
 socketio = SocketIO(app, cors_allowed_origins="*")
