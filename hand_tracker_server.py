@@ -233,7 +233,7 @@ def hand_tracking_loop(camera_index=0):
     """Main hand tracking loop"""
     global state
     
-    cap = cv2.VideoCapture(camera_index)
+    cap = cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
     if not cap.isOpened():
         print(f"Error: Could not open camera {camera_index}")
         socketio.emit('error', {'message': f'Camera {camera_index} not available'})
@@ -311,8 +311,8 @@ def serve_static(path):
 @app.route('/api/cameras')
 def list_cameras():
     cameras = []
-    for i in range(10):
-        cap = cv2.VideoCapture(i)
+    for i in range(5):
+        cap = cv2.VideoCapture(i, cv2.CAP_V4L2)
         if cap.isOpened():
             success, _ = cap.read()
             if success:
