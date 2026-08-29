@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Word / Syllable Annotator - Hand Control</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Additional styles for hand tracking */
+  #handTrackingToggle {
+    min-width: 120px;
+  }
+  #settingsBtn {
+    min-width: 80px;
+  }
+  #settingsPanel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    z-index: 1000;
+    display: none;
+    max-width: 400px;
+    width: 90%;
+  }
+  #settingsPanel h3 {
+    margin: 0 0 15px 0;
+    color: var(--text);
+  }
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .setting-row label {
+    color: var(--dim);
+    font-size: 12px;
+  }
+  .setting-row input {
+    width: 80px;
+    background: #262a33;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  #pauseDuration {
+    width: 60px;
+  }
+  #gestureSensitivity, #deadzoneThreshold {
+    width: 50px;
+  }
+  #cameraSelect {
+    width: 100%;
+    padding: 6px;
+    background: #262a33;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+  }
+  #settingsClose {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  #handStatus {
+    color: var(--accent-2);
+    font-size: 12px;
+    margin-left: 8px;
+  }
+  #handVisualization {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 150px;
+    height: 100px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: none;
+    z-index: 100;
+  }
+  #handVisualization canvas {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+
+<header id="toolbar">
+  <div class="group">
+    <label class="file-btn">
+      Load MP3
+      <input type="file" id="fileInput" accept="audio/*" hidden>
+    </label>
+    <span id="fileName" class="dim">no file loaded</span>
+  </div>
+
+  <div class="group">
+    <span class="label">Tool</span>
+    <button class="toggle-btn active" data-tool="annotate" id="toolAnnotate">Annotate</button>
+    <button class="toggle-btn" data-tool="playback" id="toolPlayback">Click-to-Play</button>
+  </div>
+
+  <div class="group">
+    <span class="label">Mode</span>
+    <button class="toggle-btn active" data-mode="word" id="modeWord">Words</button>
+    <button class="toggle-btn" data-mode="syllable" id="modeSyllable">Syllables</button>
+  </div>
+
+  <div class="group">
+    <span class="label">Push Behavior</span>
+    <button class="toggle-btn active" id="pushDirectionToggle">Push Forward Only</button>
+    <button class="toggle-btn active" id="pushStyleToggle">Push as Blocks</button>
+  </div>
+
+  <div class="group" id="syllableControls" hidden>
+    <button id="splitSyllable">+ split</button>
+    <button id="mergeSyllable">- merge</button>
+    <span id="syllableSource" class="dim"></span>
+  </div>
+
+  <div class="group">
+    <span class="label">Zoom</span>
+    <button id="zoomOut">-</button>
+    <button id="zoomIn">+</button>
+  </div>
+
+  <div class="group">
+    <button id="exportBtn">Export JSON</button>
+    <label class="file-btn">
+      Import JSON
+      <input type="file" id="importInput" accept="application/json" hidden>
+    </label>
+    <label class="file-btn">
+      Import TXT
+      <input type="file" id="importTxtInput" accept="text/plain" hidden>
+    </label>
+  </div>
+
+  <!-- Hand Tracking Controls -->
+  <div class="group">
+    <button class="toggle-btn" id="handTrackingToggle">Hand Control OFF</button>
+    <span id="handStatus" class="dim"></span>
+    <button id="settingsBtn">Settings</button>
+  </div>
+</header>
+
+<div id="status" class="dim"></div>
+
+<main>
+  <div id="canvasScroll">
+    <div id="canvasStack">
+      <canvas id="specCanvas"></canvas>
+      <canvas id="overlayCanvas"></canvas>
+    </div>
+  </div>
+
+  <aside id="sidebar">
+    <h3>Words <span id="wordCount" class="dim"></span></h3>
+    <div id="wordList"></div>
+  </aside>
+</main>
+
+<!-- Hand Visualization -->
+<div id="handVisualization">
+  <canvas id="handVisCanvas"></canvas>
+</div>
+
+<!-- Settings Panel -->
+<div id="settingsPanel">
+  <h3>Hand Tracking Settings</h3>
+  
+  <div class="setting-row">
+    <label>Camera:</label>
+    <select id="cameraSelect"></select>
+  </div>
+  
+  <div class="setting-row">
+    <label>Pause Duration (ms):</label>
+    <input type="number" id="pauseDuration" value="500" min="100" max="5000">
+  </div>
+  
+  <div class="setting-row">
+    <label>Gesture Sensitivity:</label>
+    <input type="number" id="gestureSensitivity" value="0.05" step="0.01" min="0.01" max="0.5">
+  </div>
+  
+  <div class="setting-row">
+    <label>Deadzone Threshold:</label>
+    <input type="number" id="deadzoneThreshold" value="0.02" step="0.01" min="0.01" max="0.2">
+  </div>
+  
+  <div class="setting-row">
+    <label>Enable Hand Visualization:</label>
+    <input type="checkbox" id="enableHandVis">
+  </div>
+  
+  <div id="settingsClose">
+    <button id="saveSettings">Save</button>
+    <button id="closeSettings">Close</button>
+  </div>
+</div>
+
+<footer id="help">
+  <b>Lockline:</b> Drag the purple line to lock confirmed words. TXT imports start here &middot;
+  <b>Words:</b> Drag center to move & push. Drag edges to resize/overlap &middot; 
+  <b>Annotate + Words:</b> drag empty space to draw a new word &middot; dbl-click to rename &middot; Delete to remove &middot;
+  <b>Space:</b> play the selected word or syllable &middot;
+  <b>Hand Control:</b> Left hand = start, Right hand = end. Double close = next word, Double open = previous word.
+</footer>
+
+<script src="app_hand_tracker.js"></script>
+</body>
+</html>
